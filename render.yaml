@@ -1,10 +1,9 @@
 services:
   - type: web
-    name: kick-2-0
-    env: static
-    buildCommand: echo "No build required"
-    staticPublishPath: .
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
+    name: tubonge-2
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production

@@ -19,7 +19,7 @@ class SignalingService {
     connect() {
         return new Promise((resolve, reject) => {
             // Connect to signaling server
-            this.socket = io('https://kick-signaling.glitch.me'); // Using Glitch for free hosting
+            this.socket = io('https://tubonge-2.0.onrender.com/'); // Using Glitch for free hosting
             
             this.socket.on('connect', () => {
                 console.log('Connected to signaling server');
