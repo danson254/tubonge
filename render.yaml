@@ -1,8 +1,8 @@
 services:
   - type: web
-    name: kick-2.0
+    name: kick-2-0
     env: static
-    buildCommand: npm install
+    buildCommand: echo "No build required"
     staticPublishPath: .
     routes:
       - type: rewrite
