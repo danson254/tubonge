@@ -19,10 +19,20 @@ class SignalingService {
     connect() {
         return new Promise((resolve, reject) => {
             // Connect to signaling server
-            this.socket = io('https://tubonge-2.0.onrender.com/'); // Using Glitch for free hosting
+            // Use dynamic server URL based on environment
+            const serverUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+                ? 'http://localhost:3000'
+                : window.location.origin; // Use same origin as the page
+            
+            // Connect with transport option to handle SSL issues
+            this.socket = io(serverUrl, {
+                transports: ['websocket', 'polling'],
+                secure: true,
+                rejectUnauthorized: false // Allow self-signed certificates
+            });
             
             this.socket.on('connect', () => {
-                console.log('Connected to signaling server');
+                console.log('Connected to signaling server at', serverUrl);
                 this.setupSocketListeners();
                 resolve();
             });
