@@ -1,11 +1,13 @@
 {
   "name": "kick-2.0",
   "version": "1.0.0",
-  "description": "Streaming application",
+  "description": "Live streaming platform",
+  "main": "server.js",
   "scripts": {
-    "start": "serve -s ."
+    "start": "node server.js"
   },
   "dependencies": {
-    "serve": "^14.2.0"
+    "express": "^4.18.2",
+    "socket.io": "^4.5.4"
   }
 }

@@ -1,12 +1,12 @@
-// WebRTC Signaling for multi-device streaming
-
+// WebRTC Signaling with Socket.io
 class SignalingService {
     constructor() {
+        this.socket = null;
         this.peerConnections = {};
         this.localStream = null;
         this.onRemoteStreamCallback = null;
         
-        // Use a free STUN server for NAT traversal
+        // ICE servers for NAT traversal
         this.iceServers = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
@@ -14,65 +14,93 @@ class SignalingService {
                 { urls: 'stun:stun2.l.google.com:19302' }
             ]
         };
-        
-        // Initialize Firebase for signaling
-        this.initFirebase();
     }
     
-    initFirebase() {
-        // For a production app, you would use Firebase here
-        // For this demo, we'll simulate signaling with localStorage
-        this.channelId = null;
-        window.addEventListener('storage', this.handleStorageEvent.bind(this));
+    connect() {
+        return new Promise((resolve, reject) => {
+            // Connect to signaling server
+            this.socket = io('https://kick-signaling.glitch.me'); // Using Glitch for free hosting
+            
+            this.socket.on('connect', () => {
+                console.log('Connected to signaling server');
+                this.setupSocketListeners();
+                resolve();
+            });
+            
+            this.socket.on('connect_error', (error) => {
+                console.error('Connection error:', error);
+                reject(error);
+            });
+        });
     }
     
-    handleStorageEvent(event) {
-        if (!this.channelId) return;
-        
-        // Only process events for our channel
-        if (event.key === `signaling_${this.channelId}`) {
-            try {
-                const signal = JSON.parse(event.newValue);
-                if (signal.type === 'offer' && !this.isHost) {
-                    this.handleOffer(signal);
-                } else if (signal.type === 'answer' && this.isHost) {
-                    this.handleAnswer(signal);
-                } else if (signal.type === 'candidate') {
-                    this.handleCandidate(signal);
-                }
-            } catch (e) {
-                console.error('Error parsing signal:', e);
+    setupSocketListeners() {
+        this.socket.on('offer', async (data) => {
+            if (!this.isHost) {
+                await this.handleOffer(data);
             }
-        }
+        });
+        
+        this.socket.on('answer', async (data) => {
+            if (this.isHost) {
+                await this.handleAnswer(data);
+            }
+        });
+        
+        this.socket.on('candidate', async (data) => {
+            await this.handleCandidate(data);
+        });
+        
+        this.socket.on('viewer-joined', (data) => {
+            console.log(`Viewer joined: ${data.userId}`);
+            if (this.isHost) {
+                this.createPeerConnection(data.userId);
+            }
+        });
+        
+        this.socket.on('stream-ended', () => {
+            showAlert('Stream Ended', 'The host has ended the stream.', 'info');
+            // Redirect to browse page
+            navigateTo('browse-streams-section');
+        });
     }
     
     async joinChannel(channelId, isHost, localStream) {
-        this.channelId = channelId;
-        this.isHost = isHost;
-        this.localStream = localStream;
-        
-        if (isHost) {
-            // Host waits for connections
-            console.log('Host ready for connections on channel:', channelId);
-            
-            // Store channel info
-            const channels = JSON.parse(localStorage.getItem('signaling_channels') || '[]');
-            if (!channels.includes(channelId)) {
-                channels.push(channelId);
-                localStorage.setItem('signaling_channels', JSON.stringify(channels));
+        try {
+            if (!this.socket) {
+                await this.connect();
             }
-        } else {
-            // Viewer initiates connection to host
-            await this.connectToHost(channelId);
+            
+            this.channelId = channelId;
+            this.isHost = isHost;
+            this.localStream = localStream;
+            
+            this.socket.emit('join-channel', {
+                channelId,
+                isHost,
+                userId: getCurrentUser()
+            });
+            
+            if (isHost) {
+                console.log('Host ready for connections on channel:', channelId);
+            } else {
+                console.log('Viewer joining channel:', channelId);
+                this.socket.emit('viewer-join', {
+                    channelId,
+                    userId: getCurrentUser()
+                });
+            }
+        } catch (error) {
+            console.error('Error joining channel:', error);
+            throw error;
         }
     }
     
-    async connectToHost(channelId) {
-        console.log('Connecting to host on channel:', channelId);
+    createPeerConnection(remoteUserId) {
+        console.log('Creating peer connection for:', remoteUserId);
         
-        // Create peer connection
         const pc = new RTCPeerConnection(this.iceServers);
-        this.peerConnections[channelId] = pc;
+        this.peerConnections[remoteUserId] = pc;
         
         // Add local stream
         this.localStream.getTracks().forEach(track => {
@@ -82,99 +110,107 @@ class SignalingService {
         // Handle ICE candidates
         pc.onicecandidate = (event) => {
             if (event.candidate) {
-                this.sendSignal({
-                    type: 'candidate',
+                this.socket.emit('candidate', {
+                    channelId: this.channelId,
                     candidate: event.candidate,
                     from: getCurrentUser(),
-                    to: 'host'
+                    to: remoteUserId
                 });
             }
         };
         
-        // Handle remote stream
-        pc.ontrack = (event) => {
-            if (this.onRemoteStreamCallback) {
-                this.onRemoteStreamCallback(event.streams[0]);
-            }
-        };
-        
-        // Create and send offer
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        
-        this.sendSignal({
-            type: 'offer',
-            sdp: pc.localDescription,
-            from: getCurrentUser(),
-            to: 'host'
-        });
-    }
-    
-    async handleOffer(signal) {
-        const pc = new RTCPeerConnection(this.iceServers);
-        this.peerConnections[signal.from] = pc;
-        
-        // Add local stream
-        this.localStream.getTracks().forEach(track => {
-            pc.addTrack(track, this.localStream);
-        });
-        
-        // Handle ICE candidates
-        pc.onicecandidate = (event) => {
-            if (event.candidate) {
-                this.sendSignal({
-                    type: 'candidate',
-                    candidate: event.candidate,
-                    from: 'host',
-                    to: signal.from
-                });
-            }
-        };
+        // Create and send offer if host
+        if (this.isHost) {
+            pc.createOffer()
+                .then(offer => pc.setLocalDescription(offer))
+                .then(() => {
+                    this.socket.emit('offer', {
+                        channelId: this.channelId,
+                        sdp: pc.localDescription,
+                        from: getCurrentUser(),
+                        to: remoteUserId
+                    });
+                })
+                .catch(error => console.error('Error creating offer:', error));
+        }
         
         // Handle remote stream
         pc.ontrack = (event) => {
             if (this.onRemoteStreamCallback) {
-                this.onRemoteStreamCallback(event.streams[0], signal.from);
+                this.onRemoteStreamCallback(event.streams[0], remoteUserId);
             }
         };
         
-        // Set remote description
-        await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
-        
-        // Create and send answer
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        
-        this.sendSignal({
-            type: 'answer',
-            sdp: pc.localDescription,
-            from: 'host',
-            to: signal.from
-        });
+        return pc;
     }
     
-    async handleAnswer(signal) {
-        const pc = this.peerConnections[signal.from];
-        if (pc) {
-            await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+    async handleOffer(data) {
+        console.log('Received offer from:', data.from);
+        
+        const pc = this.peerConnections[data.from] || this.createPeerConnection(data.from);
+        
+        try {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            
+            this.socket.emit('answer', {
+                channelId: this.channelId,
+                sdp: pc.localDescription,
+                from: getCurrentUser(),
+                to: data.from
+            });
+        } catch (error) {
+            console.error('Error handling offer:', error);
         }
     }
     
-    async handleCandidate(signal) {
-        const pc = this.peerConnections[signal.from] || this.peerConnections[signal.to];
+    async handleAnswer(data) {
+        console.log('Received answer from:', data.from);
+        
+        const pc = this.peerConnections[data.from];
         if (pc) {
-            await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+            try {
+                await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            } catch (error) {
+                console.error('Error handling answer:', error);
+            }
         }
     }
     
-    sendSignal(signal) {
-        // In a real app, this would send to Firebase
-        // For this demo, we use localStorage
-        localStorage.setItem(`signaling_${this.channelId}`, JSON.stringify(signal));
+    async handleCandidate(data) {
+        console.log('Received ICE candidate');
+        
+        const pc = this.peerConnections[data.from] || this.peerConnections[data.to];
+        if (pc) {
+            try {
+                await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+            } catch (error) {
+                console.error('Error adding ICE candidate:', error);
+            }
+        }
     }
     
     setOnRemoteStream(callback) {
         this.onRemoteStreamCallback = callback;
+    }
+    
+    endStream() {
+        if (this.isHost) {
+            this.socket.emit('end-stream', {
+                channelId: this.channelId
+            });
+        }
+        this.closeAllConnections();
+    }
+    
+    leaveChannel() {
+        this.socket.emit('leave-channel', {
+            channelId: this.channelId,
+            userId: getCurrentUser()
+        });
+        this.closeAllConnections();
     }
     
     closeAllConnections() {

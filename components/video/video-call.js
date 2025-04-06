@@ -190,8 +190,12 @@ class VideoCall {
             this.screenStream.getTracks().forEach(track => track.stop());
         }
         
-        // Close all peer connections
-        signaling.closeAllConnections();
+        // End stream or leave channel
+        if (this.isHost) {
+            signaling.endStream();
+        } else {
+            signaling.leaveChannel();
+        }
         
         // Reset video elements
         this.hostVideo.srcObject = null;
