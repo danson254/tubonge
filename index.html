@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kick 2.0 - Streaming App</title>
+    <link rel="stylesheet" href="assets/styles/main.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1><i class="fas fa-video"></i> Kick 2.0</h1>
+            <nav>
+                <button id="create-stream-btn"><i class="fas fa-plus"></i> Create Stream</button>
+                <button id="browse-streams-btn"><i class="fas fa-compass"></i> Browse Streams</button>
+                <span id="user-info"><i class="fas fa-user"></i> <span id="username">Guest</span></span>
+            </nav>
+        </header>
+
+        <main>
+            <section id="welcome-section" class="active-section">
+                <h2>Welcome to Kick 2.0</h2>
+                <p>Stream, chat, and connect with others in real-time!</p>
+                <div class="login-container">
+                    <input type="text" id="username-input" placeholder="Enter your username">
+                    <button id="login-btn"><i class="fas fa-sign-in-alt"></i> Get Started</button>
+                </div>
+            </section>
+
+            <section id="create-stream-section" class="section">
+                <h2><i class="fas fa-broadcast-tower"></i> Create a Stream</h2>
+                <form id="stream-form">
+                    <div class="form-group">
+                        <label for="stream-title">Stream Title</label>
+                        <input type="text" id="stream-title" required placeholder="What's your stream about?">
+                    </div>
+                    <div class="form-group">
+                        <label for="stream-type">Stream Type</label>
+                        <select id="stream-type">
+                            <option value="public">Public (Anyone can join)</option>
+                            <option value="private">Private (Invite only)</option>
+                        </select>
+                    </div>
+                    <button type="submit"><i class="fas fa-play-circle"></i> Start Streaming</button>
+                </form>
+            </section>
+
+            <!-- Add this button in the browse-streams-section -->
+            <section id="browse-streams-section" class="section">
+                <h2><i class="fas fa-compass"></i> Browse Streams</h2>
+                <div class="browse-actions">
+                    <button id="clear-streams-btn" class="danger-btn">
+                        <i class="fas fa-trash-alt"></i> Clear All Streams
+                    </button>
+                </div>
+                <div id="streams-list" class="streams-grid">
+                    <!-- Streams will be listed here -->
+                </div>
+            </section>
+
+            <section id="stream-view-section" class="section">
+                <div class="stream-container">
+                    <div class="video-container">
+                        <div class="main-video">
+                            <video id="host-video" autoplay playsinline></video>
+                            <div class="video-info">
+                                <h3 id="stream-view-title">Stream Title</h3>
+                                <p><i class="fas fa-user"></i> Host: <span id="stream-host">Username</span></p>
+                            </div>
+                        </div>
+                        <div class="viewer-video">
+                            <video id="viewer-video" autoplay playsinline></video>
+                        </div>
+                        <!-- Add this to the video-controls div -->
+                        <div class="video-controls">
+                            <button id="mute-audio-btn" class="tooltip">
+                                <i class="fas fa-microphone"></i>
+                                <span class="tooltip-text">Mute Audio</span>
+                            </button>
+                            <button id="mute-video-btn" class="tooltip">
+                                <i class="fas fa-video"></i>
+                                <span class="tooltip-text">Mute Video</span>
+                            </button>
+                            <button id="noise-suppression-btn" class="tooltip active">
+                                <i class="fas fa-volume-mute"></i>
+                                <span class="tooltip-text">Noise Suppression</span>
+                            </button>
+                            <button id="share-screen-btn" class="tooltip">
+                                <i class="fas fa-desktop"></i>
+                                <span class="tooltip-text">Share Screen</span>
+                            </button>
+                            <button id="gift-btn" class="tooltip">
+                                <i class="fas fa-gift"></i>
+                                <span class="tooltip-text">Gift Host</span>
+                            </button>
+                            <button id="end-stream-btn" class="tooltip host-only">
+                                <i class="fas fa-stop-circle"></i>
+                                <span class="tooltip-text">End Stream</span>
+                            </button>
+                            <button id="leave-stream-btn" class="tooltip viewer-only">
+                                <i class="fas fa-sign-out-alt"></i>
+                                <span class="tooltip-text">Leave Stream</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="chat-container">
+                        <div class="chat-header">
+                            <i class="fas fa-comments"></i> Live Chat
+                        </div>
+                        <div id="chat-messages"></div>
+                        <div class="chat-input">
+                            <input type="text" id="chat-message-input" placeholder="Type a message...">
+                            <button id="send-message-btn"><i class="fas fa-paper-plane"></i></button>
+                        </div>
+                        <div class="chat-settings">
+                            <label>
+                                <input type="checkbox" id="mute-gift-sound"> Mute Gift Sound
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Modals -->
+        <div id="join-request-modal" class="modal">
+            <div class="modal-content">
+                <h3><i class="fas fa-user-plus"></i> Join Request</h3>
+                <p><span id="requester-name"></span> wants to join your stream.</p>
+                <div class="modal-actions">
+                    <button id="approve-join-btn"><i class="fas fa-check"></i> Approve</button>
+                    <button id="reject-join-btn"><i class="fas fa-times"></i> Reject</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="gift-modal" class="modal">
+            <div class="modal-content">
+                <h3><i class="fas fa-gift"></i> Gift the Host</h3>
+                <p>Choose a gift to show your appreciation!</p>
+                <div class="gift-options">
+                    <div class="gift-option" data-value="100">
+                        <div class="gift-icon">🎁</div>
+                        <p>Small Gift</p>
+                        <p>Ksh 100</p>
+                    </div>
+                    <div class="gift-option" data-value="500">
+                        <div class="gift-icon">💎</div>
+                        <p>Medium Gift</p>
+                        <p>Ksh 500</p>
+                    </div>
+                    <div class="gift-option" data-value="1000">
+                        <div class="gift-icon">👑</div>
+                        <p>Large Gift</p>
+                        <p>Ksh 1000</p>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button id="cancel-gift-btn"><i class="fas fa-times"></i> Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Make sure this modal exists in your HTML -->
+        <div id="delete-stream-modal" class="modal">
+            <div class="modal-content">
+                <h3><i class="fas fa-exclamation-triangle"></i> End Stream</h3>
+                <p>Are you sure you want to end this stream? This action cannot be undone.</p>
+                <div class="modal-actions">
+                    <button id="confirm-delete-btn"><i class="fas fa-check"></i> Yes, End Stream</button>
+                    <button id="cancel-delete-btn"><i class="fas fa-times"></i> Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom Alert -->
+        <div class="custom-alert" id="custom-alert">
+            <i class="fas fa-info-circle"></i>
+            <div class="custom-alert-content">
+                <h4 id="alert-title">Alert Title</h4>
+                <p id="alert-message">Alert message goes here</p>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loading-overlay" style="display: none;">
+            <span class="loader"></span>
+        </div>
+
+        <!-- Scripts -->
+        <script src="utils/utils.js"></script>
+        <script src="components/video/video-call.js"></script>
+        <script src="components/chat/chat.js"></script>
+        <script src="components/gift/gift-modal.js"></script>
+        <script src="components/stream/browse-streams.js"></script>
+        <script src="app.js"></script>
+    </div>
+
+    <!-- Add this modal after the delete-stream-modal -->
+    <div id="confirm-clear-streams-modal" class="modal">
+        <div class="modal-content">
+            <h3><i class="fas fa-exclamation-triangle"></i> Clear All Streams</h3>
+            <p>Are you sure you want to clear all streams? This action cannot be undone.</p>
+            <div class="modal-actions">
+                <button id="confirm-clear-btn"><i class="fas fa-check"></i> Yes, Clear All</button>
+                <button id="cancel-clear-btn"><i class="fas fa-times"></i> Cancel</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
