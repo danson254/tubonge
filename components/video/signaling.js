@@ -18,21 +18,30 @@ class SignalingService {
     
     connect() {
         return new Promise((resolve, reject) => {
-            // Connect to signaling server
-            // Use dynamic server URL based on environment
-            const serverUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-                ? 'http://localhost:3000'
-                : window.location.origin; // Use same origin as the page
+            // Get the current hostname
+            const hostname = window.location.hostname;
             
-            // Connect with transport option to handle SSL issues
+            // Determine the appropriate server URL
+            let serverUrl;
+            if (hostname === 'localhost' || hostname === '127.0.0.1') {
+                // Local development
+                serverUrl = 'http://localhost:3000';
+            } else {
+                // Production - use secure WebSockets with the same hostname
+                serverUrl = window.location.origin;
+            }
+            
+            console.log('Connecting to signaling server at:', serverUrl);
+            
+            // Connect with transport options to handle potential SSL issues
             this.socket = io(serverUrl, {
                 transports: ['websocket', 'polling'],
                 secure: true,
-                rejectUnauthorized: false // Allow self-signed certificates
+                rejectUnauthorized: false
             });
             
             this.socket.on('connect', () => {
-                console.log('Connected to signaling server at', serverUrl);
+                console.log('Successfully connected to signaling server');
                 this.setupSocketListeners();
                 resolve();
             });

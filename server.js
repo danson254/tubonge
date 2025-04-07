@@ -4,6 +4,11 @@ const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
+
+// Serve static files from the current directory
+app.use(express.static('./'));
+
+// Configure Socket.io with proper CORS settings
 const io = new Server(server, {
     cors: {
         origin: "*",
@@ -11,46 +16,26 @@ const io = new Server(server, {
     }
 });
 
-// Serve static files
-app.use(express.static('./'));
-
-// Store active channels
-const activeChannels = {};
-
+// Set up Socket.io event handlers
 io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
+    console.log('New client connected:', socket.id);
     
     socket.on('join-channel', (data) => {
-        const { channelId, isHost, userId } = data;
-        
-        // Join socket room
-        socket.join(channelId);
-        
-        // Store channel info
-        if (!activeChannels[channelId]) {
-            activeChannels[channelId] = {
-                hostId: isHost ? userId : null,
-                viewers: []
-            };
-        } else if (isHost) {
-            activeChannels[channelId].hostId = userId;
-        }
-        
-        console.log(`User ${userId} joined channel ${channelId} as ${isHost ? 'host' : 'viewer'}`);
+        console.log(`User ${data.userId} joining channel ${data.channelId}`);
+        socket.join(data.channelId);
+        socket.to(data.channelId).emit('user-joined', {
+            userId: data.userId,
+            channelId: data.channelId
+        });
     });
     
-    socket.on('viewer-join', (data) => {
-        const { channelId, userId } = data;
-        
-        if (activeChannels[channelId]) {
-            // Add viewer to channel
-            if (!activeChannels[channelId].viewers.includes(userId)) {
-                activeChannels[channelId].viewers.push(userId);
-            }
-            
-            // Notify host
-            socket.to(channelId).emit('viewer-joined', { userId });
-        }
+    socket.on('leave-channel', (data) => {
+        console.log(`User ${data.userId} leaving channel ${data.channelId}`);
+        socket.leave(data.channelId);
+        socket.to(data.channelId).emit('user-left', {
+            userId: data.userId,
+            channelId: data.channelId
+        });
     });
     
     socket.on('offer', (data) => {
@@ -65,40 +50,12 @@ io.on('connection', (socket) => {
         socket.to(data.channelId).emit('candidate', data);
     });
     
-    socket.on('end-stream', (data) => {
-        const { channelId } = data;
-        
-        // Notify all viewers
-        socket.to(channelId).emit('stream-ended');
-        
-        // Remove channel
-        delete activeChannels[channelId];
-    });
-    
-    socket.on('leave-channel', (data) => {
-        const { channelId, userId } = data;
-        
-        if (activeChannels[channelId]) {
-            // Remove viewer from channel
-            activeChannels[channelId].viewers = activeChannels[channelId].viewers.filter(
-                id => id !== userId
-            );
-            
-            // Remove channel if empty
-            if (activeChannels[channelId].viewers.length === 0 && 
-                activeChannels[channelId].hostId === null) {
-                delete activeChannels[channelId];
-            }
-        }
-        
-        socket.leave(channelId);
-    });
-    
     socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id);
+        console.log('Client disconnected:', socket.id);
     });
 });
 
+// Start the server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
