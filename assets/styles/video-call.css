@@ -1,0 +1,238 @@
+/* Video Call Styles */
+#video-call-section {
+    background-color: #1a1a2e;
+    color: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+}
+
+.video-call-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.video-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    height: 60vh;
+}
+
+.video-item {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    background-color: #0f0f1a;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s ease;
+}
+
+.video-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+}
+
+.video-item video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background-color: #0f0f1a;
+}
+
+.video-label {
+    position: absolute;
+    bottom: 15px;
+    left: 15px;
+    background-color: rgba(0, 0, 0, 0.6);
+    color: white;
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.local-video .video-label::before {
+    content: "•";
+    color: #4ade80;
+    font-size: 24px;
+    line-height: 0;
+    margin-right: 5px;
+}
+
+.remote-video .video-label::before {
+    content: "•";
+    color: #60a5fa;
+    font-size: 24px;
+    line-height: 0;
+    margin-right: 5px;
+}
+
+.video-call-controls {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    padding: 15px 0;
+    background-color: rgba(15, 15, 26, 0.7);
+    border-radius: 50px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    margin: 0 auto;
+    width: fit-content;
+    padding: 15px 30px;
+}
+
+.control-btn {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: none;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.control-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+}
+
+.control-btn.danger {
+    background-color: rgba(239, 68, 68, 0.8);
+}
+
+.control-btn.danger:hover {
+    background-color: rgba(239, 68, 68, 1);
+}
+
+#share-call-link-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: auto;
+    padding: 0 20px;
+    border-radius: 25px;
+    background-color: rgba(79, 70, 229, 0.8);
+}
+
+#share-call-link-btn:hover {
+    background-color: rgba(79, 70, 229, 1);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .video-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr 1fr;
+    }
+    
+    .video-call-controls {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .control-btn {
+        width: 45px;
+        height: 45px;
+        font-size: 16px;
+    }
+}
+
+/* Muted state indicators */
+.muted::after {
+    content: "";
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 30px;
+    height: 30px;
+    background-color: rgba(0, 0, 0, 0.6);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+}
+
+.audio-muted::after {
+    content: "\f131";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    color: #ef4444;
+}
+
+.video-muted::after {
+    content: "\f4e2";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    color: #ef4444;
+}
+
+/* Share call link modal styling */
+#share-call-link-modal .modal-content {
+    background-color: #1a1a2e;
+    color: white;
+    border-radius: 15px;
+    padding: 25px;
+}
+
+#share-call-link-modal h2 {
+    color: #60a5fa;
+    margin-bottom: 15px;
+}
+
+.share-link-container {
+    display: flex;
+    margin-top: 20px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#share-call-link-input {
+    flex: 1;
+    padding: 12px 15px;
+    border: none;
+    background-color: transparent;
+    color: white;
+    font-size: 14px;
+}
+
+#copy-call-link-btn {
+    background-color: #4f46e5;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+
+#copy-call-link-btn:hover {
+    background-color: #4338ca;
+}
+
+/* Animation for when video connects */
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.7); }
+    70% { box-shadow: 0 0 0 15px rgba(96, 165, 250, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(96, 165, 250, 0); }
+}
+
+.connected {
+    animation: pulse 2s infinite;
+}

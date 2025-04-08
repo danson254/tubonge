@@ -15,6 +15,9 @@ class StreamBrowser {
         this.confirmDeleteBtn = document.getElementById('confirm-delete-btn');
         this.cancelDeleteBtn = document.getElementById('cancel-delete-btn');
         this.requesterNameSpan = document.getElementById('requester-name');
+        this.shareLinkBtn = document.getElementById('share-link-btn');
+        this.copyLinkBtn = document.getElementById('copy-link-btn');
+        this.shareLinkInput = document.getElementById('share-link-input');
         
         this.currentStreamId = null;
         this.isHost = false;
@@ -56,6 +59,19 @@ class StreamBrowser {
         this.cancelDeleteBtn.addEventListener('click', () => {
             hideModal('delete-stream-modal');
         });
+        
+        // Add share link button event listeners
+        if (this.shareLinkBtn) {
+            this.shareLinkBtn.addEventListener('click', () => {
+                this.showShareLink();
+            });
+        }
+        
+        if (this.copyLinkBtn) {
+            this.copyLinkBtn.addEventListener('click', () => {
+                this.copyShareLink();
+            });
+        }
         
         // Check for join requests periodically (simulating real-time)
         setInterval(() => {
@@ -422,35 +438,29 @@ class StreamBrowser {
         }
     }
     
-    // Add this method after the leaveStream method
-    deleteStream() {
-        const stream = getStreamById(this.currentStreamId);
+    // Add these methods to your StreamBrowser class
+    showShareLink() {
+        if (!this.currentStreamId) return;
         
-        if (stream) {
-            // Remove the stream from localStorage
-            deleteStream(this.currentStreamId);
-            
-            // End video call
-            videoCall.endCall();
-            
-            // Clear chat
-            chat.clear();
-            
-            // Reset state
-            this.currentStreamId = null;
-            this.isHost = false;
-            this.isParticipant = false;
-            
-            // Show success message
-            showAlert('Stream Ended', 'Your stream has been ended successfully.', 'success');
-            
-            // Show browse section
-            this.loadStreams();
-            showSection('browse-streams-section');
-        }
+        // Generate shareable link
+        const shareableLink = signaling.generateShareableLink(this.currentStreamId);
         
-        // Hide modal
-        hideModal('delete-stream-modal');
+        // Update input field
+        this.shareLinkInput.value = shareableLink;
+        
+        // Show modal
+        showModal('share-link-modal');
+    }
+    
+    copyShareLink() {
+        this.shareLinkInput.select();
+        document.execCommand('copy');
+        
+        // Show feedback
+        this.copyLinkBtn.textContent = 'Copied!';
+        setTimeout(() => {
+            this.copyLinkBtn.textContent = 'Copy';
+        }, 2000);
     }
 }
 

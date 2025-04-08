@@ -2,20 +2,22 @@
 class SignalingService {
     constructor() {
         this.socket = null;
-        this.peerConnections = {};
+        this.channelId = null;
+        this.isHost = false;
         this.localStream = null;
+        this.peerConnections = {};
         this.onRemoteStreamCallback = null;
-        
-        // ICE servers for NAT traversal
-        this.iceServers = {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' }
-            ]
-        };
+        this.connectionStatusCallback = null; // Add this line
     }
     
+    // Add this method to your Signaling class
+    generateShareableLink(streamId) {
+        const baseUrl = window.location.origin;
+        return `${baseUrl}?join=${streamId}`;
+    }
+    
+    // Also ensure your connect method is properly handling SSL
+    // In the connect method, update the server URL handling
     connect() {
         return new Promise((resolve, reject) => {
             // Get the current hostname
@@ -37,7 +39,10 @@ class SignalingService {
             this.socket = io(serverUrl, {
                 transports: ['websocket', 'polling'],
                 secure: true,
-                rejectUnauthorized: false
+                rejectUnauthorized: false,
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000
             });
             
             this.socket.on('connect', () => {
@@ -115,10 +120,68 @@ class SignalingService {
         }
     }
     
+    // Helper function to enhance audio SDP
+    enhanceAudioSDP(sdp) {
+        // Split SDP into lines
+        const lines = sdp.split('\r\n');
+        const audioLineIndex = lines.findIndex(line => line.startsWith('m=audio'));
+        
+        if (audioLineIndex !== -1) {
+            // Find the audio section
+            let audioSection = [];
+            let i = audioLineIndex;
+            while (i < lines.length && !lines[i].startsWith('m=')) {
+                audioSection.push(lines[i]);
+                i++;
+            }
+            
+            // Add or modify audio parameters
+            const opusIndex = audioSection.findIndex(line => line.includes('opus/48000'));
+            if (opusIndex !== -1) {
+                // Add parameters for better audio quality
+                audioSection.splice(opusIndex + 1, 0, 
+                    'a=fmtp:111 minptime=10;useinbandfec=1;stereo=1;maxaveragebitrate=510000;cbr=1'
+                );
+            }
+            
+            // Replace the audio section in the SDP
+            lines.splice(audioLineIndex, audioSection.length, ...audioSection);
+        }
+        
+        return lines.join('\r\n');
+    }
+    
+    // Update the createPeerConnection method to use more STUN/TURN servers
     createPeerConnection(remoteUserId) {
         console.log('Creating peer connection for:', remoteUserId);
         
-        const pc = new RTCPeerConnection(this.iceServers);
+        // Set up peer connection with improved connectivity settings
+        const configuration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' },
+                // Add free TURN servers for better NAT traversal
+                {
+                    urls: 'turn:openrelay.metered.ca:80',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                },
+                {
+                    urls: 'turn:openrelay.metered.ca:443',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                }
+            ],
+            sdpSemantics: 'unified-plan',
+            iceTransportPolicy: 'all',
+            bundlePolicy: 'max-bundle',
+            rtcpMuxPolicy: 'require'
+        };
+        
+        const pc = new RTCPeerConnection(configuration);
         this.peerConnections[remoteUserId] = pc;
         
         // Add local stream
@@ -160,7 +223,88 @@ class SignalingService {
             }
         };
         
+        // Modify SDP to prioritize audio quality when creating offer/answer
+        const originalCreateOffer = pc.createOffer;
+        pc.createOffer = async (options) => {
+            const offer = await originalCreateOffer.apply(pc, [options]);
+            offer.sdp = this.enhanceAudioSDP(offer.sdp);
+            return offer;
+        };
+        
+        const originalCreateAnswer = pc.createAnswer;
+        pc.createAnswer = async (options) => {
+            const answer = await originalCreateAnswer.apply(pc, [options]);
+            answer.sdp = this.enhanceAudioSDP(answer.sdp);
+            return answer;
+        };
+        
         return pc;
+    }
+    
+    // Add a new method to handle connection state changes
+    handleConnectionStateChange(pc, remoteUserId) {
+        pc.onconnectionstatechange = () => {
+            console.log(`Connection state change: ${pc.connectionState} for user: ${remoteUserId}`);
+            
+            switch(pc.connectionState) {
+                case 'connected':
+                    showAlert('Connected', `Successfully connected to ${remoteUserId}`, 'success', 2000);
+                    break;
+                case 'disconnected':
+                    showAlert('Disconnected', `Connection to ${remoteUserId} was lost`, 'warning');
+                    // Try to reconnect
+                    this.tryReconnect(remoteUserId);
+                    break;
+                case 'failed':
+                    showAlert('Connection Failed', `Could not connect to ${remoteUserId}`, 'error');
+                    // Try alternative connection method
+                    this.tryAlternativeConnection(remoteUserId);
+                    break;
+            }
+        };
+    }
+    
+    // Add this method to the createPeerConnection function
+    createPeerConnection(remoteUserId) {
+        // Add connection state change handler
+        this.handleConnectionStateChange(pc, remoteUserId);
+        
+        // Add ICE connection state change handler
+        pc.oniceconnectionstatechange = () => {
+            console.log(`ICE connection state: ${pc.iceConnectionState} for user: ${remoteUserId}`);
+            
+            if (pc.iceConnectionState === 'failed') {
+                console.log('ICE Gathering failed, trying to restart ICE');
+                pc.restartIce();
+            }
+        };
+        
+        // Add ICE gathering state change handler
+        pc.onicegatheringstatechange = () => {
+            console.log(`ICE gathering state: ${pc.iceGatheringState} for user: ${remoteUserId}`);
+        };
+        
+        // Handle remote stream
+        pc.ontrack = (event) => {
+            if (this.onRemoteStreamCallback) {
+                this.onRemoteStreamCallback(event.streams[0], remoteUserId);
+            }
+        };
+        
+        // Create and send offer if host
+        if (this.isHost) {
+            pc.createOffer()
+                .then(offer => pc.setLocalDescription(offer))
+                .then(() => {
+                    this.socket.emit('offer', {
+                        channelId: this.channelId,
+                        sdp: pc.localDescription,
+                        from: getCurrentUser(),
+                        to: remoteUserId
+                    });
+                })
+                .catch(error => console.error('Error creating offer:', error));
+        }
     }
     
     async handleOffer(data) {
@@ -237,6 +381,31 @@ class SignalingService {
             pc.close();
         });
         this.peerConnections = {};
+    }
+    
+    disconnect() {
+        if (this.socket) {
+            this.socket.disconnect();
+        }
+        this.closeAllConnections();
+    }
+    
+    // Add this method to your signaling class
+    setConnectionStatusCallback(callback) {
+        this.connectionStatusCallback = callback;
+        
+        // Set up event listeners for connection status changes
+        this.socket.on('user-connected', (userId) => {
+            if (this.connectionStatusCallback) {
+                this.connectionStatusCallback('connected', userId);
+            }
+        });
+        
+        this.socket.on('user-disconnected', (userId) => {
+            if (this.connectionStatusCallback) {
+                this.connectionStatusCallback('disconnected', userId);
+            }
+        });
     }
 }
 

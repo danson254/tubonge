@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TUBONGE - Streaming App</title>
     <link rel="stylesheet" href="assets/styles/main.css">
+    <link rel="stylesheet" href="assets/styles/video-call.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
@@ -12,9 +13,11 @@
     <div id="app">
         <header>
             <h1><i class="fas fa-video"></i> TUBONGE</h1>
+            <!-- Update the nav section in the header -->
             <nav>
                 <button id="create-stream-btn"><i class="fas fa-plus"></i> Create Stream</button>
                 <button id="browse-streams-btn"><i class="fas fa-compass"></i> Browse Streams</button>
+                <button id="start-video-call-btn"><i class="fas fa-video"></i> Video Call</button>
                 <span id="user-info"><i class="fas fa-user"></i> <span id="username">Guest</span></span>
             </nav>
         </header>
@@ -60,6 +63,39 @@
                 </div>
             </section>
 
+            <!-- After the browse-streams-section and before stream-view-section -->
+            <!-- Update the video call section -->
+            <section id="video-call-section" class="section">
+                <div class="video-call-container">
+                    <div class="video-grid">
+                        <div class="video-item local-video">
+                            <video id="local-video-call" autoplay playsinline></video>
+                            <div class="video-label">You</div>
+                        </div>
+                        <div class="video-item remote-video">
+                            <video id="remote-video-call" autoplay playsinline></video>
+                            <div class="video-label">Remote User</div>
+                        </div>
+                    </div>
+                    <div class="video-call-controls">
+                        <button id="mute-call-audio-btn" class="control-btn" title="Mute Audio">
+                            <i class="fas fa-microphone"></i>
+                        </button>
+                        <button id="mute-call-video-btn" class="control-btn" title="Mute Video">
+                            <i class="fas fa-video"></i>
+                        </button>
+                        <button id="share-call-screen-btn" class="control-btn" title="Share Screen">
+                            <i class="fas fa-desktop"></i>
+                        </button>
+                        <button id="share-call-link-btn" class="control-btn" title="Share Link">
+                            <i class="fas fa-share-alt"></i> Share Link
+                        </button>
+                        <button id="end-call-btn" class="control-btn danger" title="End Call">
+                            <i class="fas fa-phone-slash"></i>
+                        </button>
+                    </div>
+                </div>
+            </section>
             <section id="stream-view-section" class="section">
                 <div class="stream-container">
                     <div class="video-container">
@@ -102,6 +138,12 @@
                             <button id="leave-stream-btn" class="tooltip viewer-only">
                                 <i class="fas fa-sign-out-alt"></i>
                                 <span class="tooltip-text">Leave Stream</span>
+                            </button>
+                        </div>
+                        <!-- Add this button in your stream-view-section, near the other controls -->
+                        <div class="stream-controls">
+                            <button id="share-link-btn" class="control-btn host-only">
+                                <i class="fas fa-share-alt"></i> Share Link
                             </button>
                         </div>
                     </div>
@@ -194,7 +236,8 @@
         <!-- Add this before your scripts -->
         <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
         <script src="components/video/signaling.js"></script>
-        <script src="components/video/video-call.js"></script>
+        <!-- Add this before app.js -->
+        <script src="components/video/video-call-direct.js"></script>
         <script src="components/chat/chat.js"></script>
         <script src="components/gift/gift-modal.js"></script>
         <script src="components/stream/browse-streams.js"></script>
@@ -212,5 +255,28 @@
             </div>
         </div>
     </div>
-</body>
-</html>
+
+    <!-- Add this modal for sharing the link -->
+    <div id="share-link-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Share Stream Link</h2>
+            <p>Share this link with others to join your stream:</p>
+            <div class="share-link-container">
+                <input type="text" id="share-link-input" readonly>
+                <button id="copy-link-btn">Copy</button>
+            </div>
+        </div>
+    </div>
+    <!-- Add this modal after the share-link-modal -->
+    <div id="share-call-link-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2><i class="fas fa-share-alt"></i> Share Video Call Link</h2>
+            <p>Share this link with others to join your video call:</p>
+            <div class="share-link-container">
+                <input type="text" id="share-call-link-input" readonly>
+                <button id="copy-call-link-btn">Copy</button>
+            </div>
+        </div>
+    </div>
